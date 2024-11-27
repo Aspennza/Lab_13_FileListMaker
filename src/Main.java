@@ -14,6 +14,7 @@ import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.Arrays;
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -22,12 +23,16 @@ import java.util.Scanner;
 
 public class Main
 {
+    //ADD JAVADOC
+
     public static void main(String[] args)
     {
         /**
          * the Scanner that will be used to take user input
          */
         Scanner in = new Scanner(System.in);
+
+        JFileChooser chooser = new JFileChooser();
         /**
          * an ArrayList that will contain all the list items entered by the user
          */
@@ -41,53 +46,70 @@ public class Main
          */
         String menuChoiceContinue = "";
 
+        String listName = "";
+
         /**
          * this algorithm presents users with a menu of choices (Add, Delete, Insert, Print, or Quit) and modifies the listContainer ArrayList accordingly based on the user's selection (or ends the program if quit is selected)
          */
-        do {
-            display(listContainer);
+        try {
+            do {
+                display(listContainer);
 
-            menuChoice = SafeInput.getRegExString(in, "Enter A to add to the list, D to delete from the list, I to insert into the list, P to print the list, or Q to quit", "[AaDdIiPpQq]");
+                menuChoice = SafeInput.getRegExString(in, "Enter A to add to the list, D to delete from the list, I to insert into the list, V to view the list, Q to quit ... S to save the current list to disk, C to clear the list", "[AaDdIiVvQqSsCc]");
 
-            /**
-             * this algorithm tests for which menu choice the user selected and runs the corresponding method
-             */
-            switch (menuChoice)
-            {
-                case "a":
-                case "A":
-                    addItem(in, listContainer);
-                    break;
-                case "d":
-                case "D":
-                    if(!listContainer.isEmpty())
-                    {
-                        deleteItem(in, listContainer);
-                    }else
-                    {
-                        System.out.println("\nYou cannot delete an item from an empty list. Add an item first.");
-                    }
-                    break;
-                case "i":
-                case "I":
-                    if(!listContainer.isEmpty())
-                    {
-                        insertItem(in, listContainer);
-                    }else
-                    {
-                        System.out.println("\nYou cannot insert an item into an empty list. Add an item first.");
-                    }
-                    break;
-                case "p":
-                case "P":
-                    printList(listContainer);
-                    break;
-                case "q":
-                case "Q":
-                    menuChoiceContinue = quitListMaker(in);
-                    break;
-            }
-        }while(!menuChoiceContinue.equalsIgnoreCase("Q"));
+                /**
+                 * this algorithm tests for which menu choice the user selected and runs the corresponding method
+                 */
+                switch (menuChoice) {
+                    case "a":
+                    case "A":
+                        addItem(in, listContainer);
+                        break;
+                    case "d":
+                    case "D":
+                        if (!listContainer.isEmpty()) {
+                            deleteItem(in, listContainer);
+                        } else {
+                            System.out.println("\nYou cannot delete an item from an empty list. Add an item first.");
+                        }
+                        break;
+                    case "i":
+                    case "I":
+                        if (!listContainer.isEmpty()) {
+                            insertItem(in, listContainer);
+                        } else {
+                            System.out.println("\nYou cannot insert an item into an empty list. Add an item first.");
+                        }
+                        break;
+                    case "v":
+                    case "V":
+                        printList(listContainer);
+                        break;
+                    case "q":
+                    case "Q":
+                        menuChoiceContinue = quitListMaker(in);
+                        break;
+                    case "s":
+                    case "S":
+                        saveFile(in, listContainer, listName);
+                        break;
+                    case "c":
+                    case "C":
+                        clearList(listContainer);
+                        break;
+                }
+            } while (!menuChoiceContinue.equalsIgnoreCase("Q"));
+        }
+        catch(FileNotFoundException e)
+        {
+            System.out.println("The file could not be found.");
+            e.printStackTrace();
+        }
+        catch(IOException e)
+        {
+            System.out.println("An exception occurred.");
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -247,5 +269,44 @@ public class Main
             System.out.print(y + ". ");
             System.out.println(list.get(x));
         }
+    }
+
+    private static void openList(ArrayList<String> list, String listName)
+    {
+        //READ ALL THE LINES FROM THE FILE BACK INTO THE ARRAY
+
+    }
+
+
+    private static void saveFile(Scanner pipe, ArrayList<String> list, String listName)
+    {
+        File workingDirectory = new File(System.getProperty("user.dir"));
+
+        if(listName.isEmpty())
+        {
+            listName = SafeInput.getRegExString(pipe, "Please enter the name of your list", "[a-zA-Z0-9_]+");
+        }
+
+        Path file = Paths.get(workingDirectory.getPath() + listName + ".txt");
+
+        OutputStream out =
+                new BufferedOutputStream(Files.newOutputStream(file, CREATE));
+        BufferedWriter writer =
+                new BufferedWriter(new OutputStreamWriter(out));
+
+
+        for(String l:list)
+        {
+            writer.write(l, 0, l.length());
+            writer.newLine();
+        }
+        writer.close();
+
+        System.out.println("\nYour list has been saved!");
+    }
+
+    private static void clearList(ArrayList<String> list)
+    {
+        list.clear();
     }
 }
