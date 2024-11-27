@@ -32,7 +32,6 @@ public class Main
          */
         Scanner in = new Scanner(System.in);
 
-        JFileChooser chooser = new JFileChooser();
         /**
          * an ArrayList that will contain all the list items entered by the user
          */
@@ -48,6 +47,10 @@ public class Main
 
         String listName = "";
 
+        JFileChooser chooser = new JFileChooser();
+        File selectedFile;
+        String listItem = "";
+
         /**
          * this algorithm presents users with a menu of choices (Add, Delete, Insert, Print, or Quit) and modifies the listContainer ArrayList accordingly based on the user's selection (or ends the program if quit is selected)
          */
@@ -55,7 +58,7 @@ public class Main
             do {
                 display(listContainer);
 
-                menuChoice = SafeInput.getRegExString(in, "Enter A to add to the list, D to delete from the list, I to insert into the list, V to view the list, Q to quit ... S to save the current list to disk, C to clear the list", "[AaDdIiVvQqSsCc]");
+                menuChoice = SafeInput.getRegExString(in, "Enter A to add to the list, D to delete from the list, I to insert into the list, V to view the list,\nQ to quit, M to move a list item, O to open a list file from disk, S to save the current list to disk, or C to clear the list", "[AaDdIiVvQqMmOoSsCc]");
 
                 /**
                  * this algorithm tests for which menu choice the user selected and runs the corresponding method
@@ -89,13 +92,19 @@ public class Main
                     case "Q":
                         menuChoiceContinue = quitListMaker(in);
                         break;
+                    case "o":
+                    case "O":
+                        listContainer = openList(listContainer, listName);
+
+                        listName = "named";
+                        break;
                     case "s":
                     case "S":
                         saveFile(in, listContainer, listName);
                         break;
                     case "c":
                     case "C":
-                        clearList(listContainer);
+                        clearList(listContainer, listName);
                         break;
                 }
             } while (!menuChoiceContinue.equalsIgnoreCase("Q"));
@@ -245,7 +254,7 @@ public class Main
         /**
          * a String to hold the possible menu choices the user can make
          */
-        String menu = "\nMenu: Add / Delete / Insert / Print / Quit";
+        String menu = "\nMenu: Add / Delete / Insert / View / Quit / Move / Open / Save / Clear";
 
         for(int x = 0; x < list.size(); x++)
         {
@@ -271,14 +280,45 @@ public class Main
         }
     }
 
-    private static void openList(ArrayList<String> list, String listName)
+    private static ArrayList<String> openList(ArrayList<String> list, String listName) throws FileNotFoundException, IOException
     {
-        //READ ALL THE LINES FROM THE FILE BACK INTO THE ARRAY
+        JFileChooser chooser = new JFileChooser();
+        File selectedFile;
+        String listItem = "";
 
+        File workingDirectory = new File(System.getProperty("user.dir"));
+        chooser.setCurrentDirectory(workingDirectory);
+
+        if(chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)
+        {
+            selectedFile = chooser.getSelectedFile();
+            Path file = selectedFile.toPath();
+
+            InputStream in =
+                    new BufferedInputStream(Files.newInputStream(file, CREATE));
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(in));
+
+            int line = 0;
+            while(reader.ready())
+            {
+                listItem = reader.readLine();
+                line++;
+
+                list.add(listItem);
+                System.out.printf("Item %-3d: %-20s", line, listItem);
+            }
+            reader.close();
+            System.out.println("\nThe list has been opened.");
+        } else
+        {
+            System.out.println("\nYou didn't select a list to open. Re-run the program to open a list.");
+            System.exit(0);
+        }
+        return list;
     }
 
-
-    private static void saveFile(Scanner pipe, ArrayList<String> list, String listName)
+    private static void saveFile(Scanner pipe, ArrayList<String> list, String listName) throws FileNotFoundException, IOException
     {
         File workingDirectory = new File(System.getProperty("user.dir"));
 
@@ -287,7 +327,7 @@ public class Main
             listName = SafeInput.getRegExString(pipe, "Please enter the name of your list", "[a-zA-Z0-9_]+");
         }
 
-        Path file = Paths.get(workingDirectory.getPath() + listName + ".txt");
+        Path file = Paths.get(workingDirectory.getPath() + "\\" + listName + ".txt");
 
         OutputStream out =
                 new BufferedOutputStream(Files.newOutputStream(file, CREATE));
@@ -305,8 +345,9 @@ public class Main
         System.out.println("\nYour list has been saved!");
     }
 
-    private static void clearList(ArrayList<String> list)
+    private static void clearList(ArrayList<String> list, String listName)
     {
         list.clear();
+        listName = "";
     }
 }
