@@ -48,8 +48,9 @@ public class Main
         String listName = "";
 
         JFileChooser chooser = new JFileChooser();
-        File selectedFile;
         String listItem = "";
+
+        Path openPath = null;
 
         /**
          * this algorithm presents users with a menu of choices (Add, Delete, Insert, Print, or Quit) and modifies the listContainer ArrayList accordingly based on the user's selection (or ends the program if quit is selected)
@@ -73,7 +74,7 @@ public class Main
                         if (!listContainer.isEmpty()) {
                             deleteItem(in, listContainer);
                         } else {
-                            System.out.println("\nYou cannot delete an item from an empty list. Add an item first.");
+                            out.println("\nYou cannot delete an item from an empty list. Add an item first.");
                         }
                         break;
                     case "i":
@@ -81,7 +82,7 @@ public class Main
                         if (!listContainer.isEmpty()) {
                             insertItem(in, listContainer);
                         } else {
-                            System.out.println("\nYou cannot insert an item into an empty list. Add an item first.");
+                            out.println("\nYou cannot insert an item into an empty list. Add an item first.");
                         }
                         break;
                     case "v":
@@ -92,11 +93,34 @@ public class Main
                     case "Q":
                         menuChoiceContinue = quitListMaker(in);
                         break;
+                    case "m":
+                    case "M":
+                        moveItem(in, listContainer);
+                        break;
                     case "o":
                     case "O":
-                        listContainer = openList(listContainer, listName);
+                        //Can't return both file name and new array?? find a solution
+                        openPath = openList(listContainer, listName);
 
-                        listName = "named";
+                        InputStream in2 =
+                                new BufferedInputStream(Files.newInputStream(openPath, CREATE));
+                        BufferedReader reader =
+                                new BufferedReader(new InputStreamReader(in2));
+
+                        listName = openPath.getFileName().toString();
+
+                        int line = 0;
+                        while(reader.ready())
+                        {
+                            listItem = reader.readLine();
+                            line++;
+
+                            listContainer.add(listItem);
+                            out.printf("Item %-3d: %-20s", line, listItem);
+                        }
+                        reader.close();
+                        out.println("\nThe list has been opened.\n");
+
                         break;
                     case "s":
                     case "S":
@@ -111,12 +135,12 @@ public class Main
         }
         catch(FileNotFoundException e)
         {
-            System.out.println("The file could not be found.");
+            out.println("The file could not be found.");
             e.printStackTrace();
         }
         catch(IOException e)
         {
-            System.out.println("An exception occurred.");
+            out.println("An exception occurred.");
             e.printStackTrace();
         }
     }
@@ -213,10 +237,10 @@ public class Main
     {
         for(int x = 0; x < list.size(); x++)
         {
-            System.out.println(list.get(x));
+            out.println(list.get(x));
         }
-        System.out.println("-----------------------");
-        System.out.println();
+        out.println("-----------------------");
+        out.println();
     }
 
     /**
@@ -258,10 +282,10 @@ public class Main
 
         for(int x = 0; x < list.size(); x++)
         {
-            System.out.println(list.get(x));
+            out.println(list.get(x));
         }
 
-        System.out.println(menu);
+        out.println(menu);
     }
 
     /**
@@ -275,16 +299,53 @@ public class Main
         {
             int y = 0;
             y = x + 1;
-            System.out.print(y + ". ");
-            System.out.println(list.get(x));
+            out.print(y + ". ");
+            out.println(list.get(x));
         }
     }
 
-    private static ArrayList<String> openList(ArrayList<String> list, String listName) throws FileNotFoundException, IOException
+    private static void moveItem(Scanner pipe, ArrayList<String> list)
     {
+        int origItemIndex = 0;
+
+        int newItemIndex = 0;
+
+        String movedItem = "";
+
+        int lowRange = 1;
+
+        int highRange = list.size();
+
+        displayNumberedList(list);
+
+        origItemIndex = SafeInput.getRangedInt(pipe, "Enter the number of the item you want to move", lowRange, highRange);
+
+        origItemIndex = origItemIndex - 1;
+
+        movedItem = list.remove(origItemIndex);
+
+        highRange = highRange - 1;
+
+        displayNumberedList(list);
+
+        newItemIndex = SafeInput.getRangedInt(pipe, "Enter the number of the location where you would like to put this list item", lowRange, highRange);
+
+        newItemIndex = newItemIndex - 1;
+
+        list.add(newItemIndex, movedItem);
+    }
+
+
+    private static Path openList(ArrayList<String> list, String listName) throws FileNotFoundException, IOException
+    {
+        //Can't return both file name and new array?? find a solution
+        //RETURN PATH INSTEAD OF ARRAYLIST
         JFileChooser chooser = new JFileChooser();
         File selectedFile;
         String listItem = "";
+        Path file = null;
+
+        clearList(list, listName);
 
         File workingDirectory = new File(System.getProperty("user.dir"));
         chooser.setCurrentDirectory(workingDirectory);
@@ -292,30 +353,15 @@ public class Main
         if(chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)
         {
             selectedFile = chooser.getSelectedFile();
-            Path file = selectedFile.toPath();
+            file = selectedFile.toPath();
 
-            InputStream in =
-                    new BufferedInputStream(Files.newInputStream(file, CREATE));
-            BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(in));
-
-            int line = 0;
-            while(reader.ready())
-            {
-                listItem = reader.readLine();
-                line++;
-
-                list.add(listItem);
-                System.out.printf("Item %-3d: %-20s", line, listItem);
-            }
-            reader.close();
-            System.out.println("\nThe list has been opened.");
+            return file;
         } else
         {
-            System.out.println("\nYou didn't select a list to open. Re-run the program to open a list.");
+            out.println("\nYou didn't select a list to open. Re-run the program to open a list.");
             System.exit(0);
         }
-        return list;
+        return file;
     }
 
     private static void saveFile(Scanner pipe, ArrayList<String> list, String listName) throws FileNotFoundException, IOException
@@ -325,24 +371,38 @@ public class Main
         if(listName.isEmpty())
         {
             listName = SafeInput.getRegExString(pipe, "Please enter the name of your list", "[a-zA-Z0-9_]+");
+            Path file = Paths.get(workingDirectory.getPath() + "\\" + listName + ".txt");
+
+            OutputStream out =
+                    new BufferedOutputStream(Files.newOutputStream(file, CREATE));
+            BufferedWriter writer =
+                    new BufferedWriter(new OutputStreamWriter(out));
+
+            for(String l:list)
+            {
+                writer.write(l, 0, l.length());
+                writer.newLine();
+            }
+            writer.close();
+
+            System.out.println("\nYour list has been saved!");
+        }else {
+            Path file = Paths.get(workingDirectory.getPath() + "\\" + listName);
+
+            OutputStream out =
+                    new BufferedOutputStream(Files.newOutputStream(file, CREATE));
+            BufferedWriter writer =
+                    new BufferedWriter(new OutputStreamWriter(out));
+
+            for(String l:list)
+            {
+                writer.write(l, 0, l.length());
+                writer.newLine();
+            }
+            writer.close();
+
+            System.out.println("\nYour list has been saved!");
         }
-
-        Path file = Paths.get(workingDirectory.getPath() + "\\" + listName + ".txt");
-
-        OutputStream out =
-                new BufferedOutputStream(Files.newOutputStream(file, CREATE));
-        BufferedWriter writer =
-                new BufferedWriter(new OutputStreamWriter(out));
-
-
-        for(String l:list)
-        {
-            writer.write(l, 0, l.length());
-            writer.newLine();
-        }
-        writer.close();
-
-        System.out.println("\nYour list has been saved!");
     }
 
     private static void clearList(ArrayList<String> list, String listName)
