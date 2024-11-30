@@ -24,6 +24,7 @@ import java.util.Scanner;
 public class Main
 {
     //ADD JAVADOC
+    //ADD THE DIRTY FLAG FOR EACH METHOD THAT CHANGES THE LIST
 
     public static void main(String[] args)
     {
@@ -52,8 +53,10 @@ public class Main
 
         Path openPath = null;
 
+        boolean needsToBeSaved = false;
+
         /**
-         * this algorithm presents users with a menu of choices (Add, Delete, Insert, Print, or Quit) and modifies the listContainer ArrayList accordingly based on the user's selection (or ends the program if quit is selected)
+         * this algorithm presents users with a menu of choices (Add, Delete, Insert, View, Quit, Move, Open, Save, or Clear) and modifies the listContainer ArrayList accordingly based on the user's selection (or ends the program if quit is selected)
          */
         try {
             do {
@@ -68,11 +71,13 @@ public class Main
                     case "a":
                     case "A":
                         addItem(in, listContainer);
+                        needsToBeSaved = true;
                         break;
                     case "d":
                     case "D":
                         if (!listContainer.isEmpty()) {
                             deleteItem(in, listContainer);
+                            needsToBeSaved = true;
                         } else {
                             out.println("\nYou cannot delete an item from an empty list. Add an item first.");
                         }
@@ -81,6 +86,7 @@ public class Main
                     case "I":
                         if (!listContainer.isEmpty()) {
                             insertItem(in, listContainer);
+                            needsToBeSaved = true;
                         } else {
                             out.println("\nYou cannot insert an item into an empty list. Add an item first.");
                         }
@@ -91,16 +97,16 @@ public class Main
                         break;
                     case "q":
                     case "Q":
-                        menuChoiceContinue = quitListMaker(in);
+                        menuChoiceContinue = quitListMaker(in, listContainer, listName, needsToBeSaved);
                         break;
                     case "m":
                     case "M":
                         moveItem(in, listContainer);
+                        needsToBeSaved = true;
                         break;
                     case "o":
                     case "O":
-                        //Can't return both file name and new array?? find a solution
-                        openPath = openList(listContainer, listName);
+                        openPath = openList(in, listContainer, listName, needsToBeSaved);
 
                         InputStream in2 =
                                 new BufferedInputStream(Files.newInputStream(openPath, CREATE));
@@ -120,7 +126,6 @@ public class Main
                         }
                         reader.close();
                         out.println("\nThe list has been opened.\n");
-
                         break;
                     case "s":
                     case "S":
@@ -128,7 +133,8 @@ public class Main
                         break;
                     case "c":
                     case "C":
-                        clearList(listContainer, listName);
+                        clearList(in, listContainer, listName, needsToBeSaved);
+                        needsToBeSaved = true;
                         break;
                 }
             } while (!menuChoiceContinue.equalsIgnoreCase("Q"));
@@ -248,7 +254,7 @@ public class Main
      *
      * @param pipe the Scanner that is used to take user input
      */
-    private static String quitListMaker(Scanner pipe)
+    private static String quitListMaker(Scanner pipe, ArrayList<String> list, String listName, boolean needsToBeSaved) throws FileNotFoundException, IOException
     {
         /**
          * a boolean that holds the true/false value output by getYNConfirm
@@ -259,12 +265,27 @@ public class Main
          */
         String menuChoice = "";
 
-        quit = SafeInput.getYNConfirm(pipe, "Are you sure you want to quit?");
+        boolean save = false;
 
-        if(quit) {
-            System.exit(0);
+        if(needsToBeSaved) {
+            save = SafeInput.getYNConfirm(pipe, "Your list isn't saved. If you do not save your list now, you will lose it. Would you like to save your list now?");
+
+            if(save) {
+                saveFile(pipe, list, listName);
+
+                quit = SafeInput.getYNConfirm(pipe, "Are you sure you want to quit?");
+
+                if(quit) {
+                    System.exit(0);
+                }
+            }else {
+                quit = SafeInput.getYNConfirm(pipe, "Are you sure you want to quit?");
+
+                if(quit) {
+                    System.exit(0);
+                }
+            }
         }
-
         return menuChoice;
     }
 
@@ -336,16 +357,23 @@ public class Main
     }
 
 
-    private static Path openList(ArrayList<String> list, String listName) throws FileNotFoundException, IOException
+    private static Path openList(Scanner pipe, ArrayList<String> list, String listName, boolean needsToBeSaved) throws FileNotFoundException, IOException
     {
-        //Can't return both file name and new array?? find a solution
-        //RETURN PATH INSTEAD OF ARRAYLIST
         JFileChooser chooser = new JFileChooser();
         File selectedFile;
         String listItem = "";
         Path file = null;
+        boolean save = false;
 
-        clearList(list, listName);
+        if(needsToBeSaved) {
+            save = SafeInput.getYNConfirm(pipe, "Your list isn't saved. If you do not save your list now, you will lose it. Would you like to save your list now?");
+
+            if(save) {
+                saveFile(pipe, list, listName);
+            }
+        }
+
+        clearList(pipe, list, listName, needsToBeSaved);
 
         File workingDirectory = new File(System.getProperty("user.dir"));
         chooser.setCurrentDirectory(workingDirectory);
@@ -405,9 +433,24 @@ public class Main
         }
     }
 
-    private static void clearList(ArrayList<String> list, String listName)
+    private static void clearList(Scanner pipe, ArrayList<String> list, String listName, boolean needsToBeSaved) throws FileNotFoundException, IOException
     {
-        list.clear();
-        listName = "";
+        boolean save = false;
+
+        if(needsToBeSaved) {
+            save = SafeInput.getYNConfirm(pipe, "Your list isn't saved. If you do not save your list now, you will lose it. Would you like to save your list now?");
+
+            if(save) {
+                saveFile(pipe, list, listName);
+
+                list.clear();
+                listName = "";
+                System.out.println("Your list has been cleared!");
+            }else {
+                list.clear();
+                listName = "";
+                System.out.println("Your list has been cleared!");
+            }
+        }
     }
 }
