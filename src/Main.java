@@ -14,7 +14,6 @@ import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.Arrays;
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -23,9 +22,6 @@ import java.util.Scanner;
 
 public class Main
 {
-    //ADD JAVADOC
-    //ADD THE DIRTY FLAG FOR EACH METHOD THAT CHANGES THE LIST
-
     public static void main(String[] args)
     {
         /**
@@ -37,35 +33,56 @@ public class Main
          * an ArrayList that will contain all the list items entered by the user
          */
         ArrayList<String> listContainer = new ArrayList<>();
+
         /**
-         * a String that will log the user's input choice based on the menu options Add, Delete, Insert, Print, or Quit
+         * a String that will log the user's input choice based on the menu options Add, Delete, Insert, View, Quit, Move, Open, Save, or Clear
          */
         String menuChoice = "";
+
         /**
          * a String that will take the value returned by the quitListMaker method
          */
         String menuChoiceContinue = "";
 
+        /**
+         * A String that will hold the filename of the current list file
+         */
         String listName = "";
 
+        /**
+         * A file chooser that will be used to present the user with an interactive file directory
+         */
         JFileChooser chooser = new JFileChooser();
+
+        /**
+         * A String that will take the list items read from an existing text file
+         */
         String listItem = "";
 
+        /**
+         * A Path that will hold the filepath to the user's selected file from the openList method
+         */
         Path openPath = null;
 
+        /**
+         * A boolean that will track when the user has made a modification to their ArrayList
+         */
         boolean needsToBeSaved = false;
 
         /**
-         * this algorithm presents users with a menu of choices (Add, Delete, Insert, View, Quit, Move, Open, Save, or Clear) and modifies the listContainer ArrayList accordingly based on the user's selection (or ends the program if quit is selected)
+         * This algorithm tests if any of the methods run in the do ... while() loop below throw a FileNotFoundException or an IOException and outputs an error report if these exceptions are found
          */
         try {
+            /**
+             * this algorithm presents users with a menu of choices (Add, Delete, Insert, View, Quit, Move, Open, Save, or Clear) and modifies, prints, or saves the listContainer ArrayList accordingly based on the user's selection (or ends the program if quit is selected)
+             */
             do {
                 display(listContainer);
 
                 menuChoice = SafeInput.getRegExString(in, "Enter A to add to the list, D to delete from the list, I to insert into the list, V to view the list,\nQ to quit, M to move a list item, O to open a list file from disk, S to save the current list to disk, or C to clear the list", "[AaDdIiVvQqMmOoSsCc]");
 
                 /**
-                 * this algorithm tests for which menu choice the user selected and runs the corresponding method
+                 * this algorithm tests for which menu choice the user selected and runs the corresponding method, as well as managing when the needsToBeSaved flag changes between true and false
                  */
                 switch (menuChoice) {
                     case "a":
@@ -115,6 +132,9 @@ public class Main
 
                         listName = openPath.getFileName().toString();
 
+                        /**
+                         * This int tracks how many lines have been read from the given list file
+                         */
                         int line = 0;
                         while(reader.ready())
                         {
@@ -122,14 +142,15 @@ public class Main
                             line++;
 
                             listContainer.add(listItem);
-                            out.printf("Item %-3d: %-20s", line, listItem);
+                            out.printf("\nItem %-3d: %-20s", line, listItem);
                         }
                         reader.close();
-                        out.println("\nThe list has been opened.\n");
+                        out.println("\n\nThe list has been opened.\n");
                         break;
                     case "s":
                     case "S":
                         saveFile(in, listContainer, listName);
+                        needsToBeSaved = false;
                         break;
                     case "c":
                     case "C":
@@ -250,9 +271,15 @@ public class Main
     }
 
     /**
-     * Asks the user if they are sure they want to quit; if so, ends the program; if not, returns an empty String
+     * If the user's ArrayList isn't saved, this method offers the user the option to save the list; the method then asks the user if they are sure they want to quit; if so, ends the program; if not, returns an empty String
      *
      * @param pipe the Scanner that is used to take user input
+     * @param list the ArrayList the user is passing to the saveFile method
+     * @param listName the name of the list that the user is passing to the saveFile method
+     * @param needsToBeSaved boolean that determines if the user is prompted to save their list
+     * @return an empty String (to clear the user's menu input above)
+     * @throws FileNotFoundException an error that is thrown if the user's chosen file cannot be found
+     * @throws IOException an error that is thrown if any input/output error is found that is not the FileNotFoundException
      */
     private static String quitListMaker(Scanner pipe, ArrayList<String> list, String listName, boolean needsToBeSaved) throws FileNotFoundException, IOException
     {
@@ -260,11 +287,15 @@ public class Main
          * a boolean that holds the true/false value output by getYNConfirm
          */
         boolean quit = false;
+
         /**
          * a String variable that holds an empty String to be returned if the program does not end
          */
         String menuChoice = "";
 
+        /**
+         * a boolean that tracks whether the user said yes or no to saving the list
+         */
         boolean save = false;
 
         if(needsToBeSaved) {
@@ -272,25 +303,20 @@ public class Main
 
             if(save) {
                 saveFile(pipe, list, listName);
-
-                quit = SafeInput.getYNConfirm(pipe, "Are you sure you want to quit?");
-
-                if(quit) {
-                    System.exit(0);
-                }
-            }else {
-                quit = SafeInput.getYNConfirm(pipe, "Are you sure you want to quit?");
-
-                if(quit) {
-                    System.exit(0);
-                }
             }
         }
+
+        quit = SafeInput.getYNConfirm(pipe, "Are you sure you want to quit?");
+
+        if(quit) {
+            System.exit(0);
+        }
+
         return menuChoice;
     }
 
     /**
-     * Prints all items in the inputted ArrayList and prints the menu of possible user choices (Add, Delete, Insert, Print, and Quit)
+     * Prints all items in the inputted ArrayList and prints the menu of possible user choices (Add, Delete, Insert, View, Quit, Move, Open, Save, and Clear)
      *
      * @param list the ArrayList to be printed
      */
@@ -325,16 +351,37 @@ public class Main
         }
     }
 
+    /**
+     * Allows the user to 'move' an item in the selected ArrayList from one index to another by removing the selected item from its original index and adding it to the new index selected by the user
+     *
+     * @param pipe the Scanner that is used to take user input
+     * @param list the ArrayList that is being modified
+     */
     private static void moveItem(Scanner pipe, ArrayList<String> list)
     {
+        /**
+         * An int that tracks which list item will be moved based on its original index/location in the ArrayList
+         */
         int origItemIndex = 0;
 
+        /**
+         * An int that tracks which index to move the selected list item to
+         */
         int newItemIndex = 0;
 
+        /**
+         * A String that holds the name of the list item while it is being moved
+         */
         String movedItem = "";
 
+        /**
+         * An int that defines the lowest array index the user can select
+         */
         int lowRange = 1;
 
+        /**
+         * An int that defines the highest array index the user can select
+         */
         int highRange = list.size();
 
         displayNumberedList(list);
@@ -356,25 +403,39 @@ public class Main
         list.add(newItemIndex, movedItem);
     }
 
-
+    /**
+     * This method asks the user to save their existing list if it is not saved, clears the existing list in Intellij, allows the user to select a new text file to import, and returns the filepath to the main method
+     *
+     * @param pipe the Scanner that is used to take user input
+     * @param list the ArrayList that is being saved and cleared
+     * @param listName the name of the list that is being saved and cleared
+     * @param needsToBeSaved boolean that determines if the user is prompted to save their list
+     * @return the filepath that the main method will use to locate the file and retrieve the selected list and filename
+     * @throws FileNotFoundException an error that is thrown if the user's chosen file cannot be found
+     * @throws IOException an error that is thrown if any input/output error is found that is not the FileNotFoundException
+     */
     private static Path openList(Scanner pipe, ArrayList<String> list, String listName, boolean needsToBeSaved) throws FileNotFoundException, IOException
     {
+        /**
+         * A file chooser that will be used to present the user with an interactive file directory
+         */
         JFileChooser chooser = new JFileChooser();
+
+        /**
+         * A File that holds the file selected by the user
+         */
         File selectedFile;
-        String listItem = "";
+
+        /**
+         * A Path that holds the Path equivalent of selectedFile
+         */
         Path file = null;
-        boolean save = false;
-
-        if(needsToBeSaved) {
-            save = SafeInput.getYNConfirm(pipe, "Your list isn't saved. If you do not save your list now, you will lose it. Would you like to save your list now?");
-
-            if(save) {
-                saveFile(pipe, list, listName);
-            }
-        }
 
         clearList(pipe, list, listName, needsToBeSaved);
 
+        /**
+         * The directory that will open when JFileChooser pop-up appears
+         */
         File workingDirectory = new File(System.getProperty("user.dir"));
         chooser.setCurrentDirectory(workingDirectory);
 
@@ -392,13 +453,29 @@ public class Main
         return file;
     }
 
+    /**
+     * This method writes the user's Intellij list to a text file, 'saving' it; if the listName is empty, also asks the user to name the file
+     *
+     * @param pipe the Scanner that is used to take user input
+     * @param list the ArrayList that is being saved to a text file
+     * @param listName the filename of the list that is being saved
+     * @throws FileNotFoundException an error that is thrown if the user's chosen file cannot be found
+     * @throws IOException an error that is thrown if any input/output error is found that is not the FileNotFoundException
+     */
     private static void saveFile(Scanner pipe, ArrayList<String> list, String listName) throws FileNotFoundException, IOException
     {
+        /**
+         * The directory that will open when JFileChooser pop-up appears
+         */
         File workingDirectory = new File(System.getProperty("user.dir"));
 
         if(listName.isEmpty())
         {
             listName = SafeInput.getRegExString(pipe, "Please enter the name of your list", "[a-zA-Z0-9_]+");
+
+            /**
+             * The Path that holds the working directory and the filename chosen by the user
+             */
             Path file = Paths.get(workingDirectory.getPath() + "\\" + listName + ".txt");
 
             OutputStream out =
@@ -409,18 +486,26 @@ public class Main
             for(String l:list)
             {
                 writer.write(l, 0, l.length());
+                writer.flush();
                 writer.newLine();
             }
             writer.close();
 
             System.out.println("\nYour list has been saved!");
         }else {
+            /**
+             * The Path that holds the working directory and the existing filename
+             */
             Path file = Paths.get(workingDirectory.getPath() + "\\" + listName);
 
             OutputStream out =
                     new BufferedOutputStream(Files.newOutputStream(file, CREATE));
             BufferedWriter writer =
                     new BufferedWriter(new OutputStreamWriter(out));
+
+            BufferedWriter writer2 = Files.newBufferedWriter(file);
+            writer2.write("");
+            writer2.flush();
 
             for(String l:list)
             {
@@ -433,8 +518,21 @@ public class Main
         }
     }
 
+    /**
+     * This method tests if the user's file needs to be saved and clears the inputted ArrayList
+     *
+     * @param pipe the Scanner that is used to take user input
+     * @param list the ArrayList that is being saved and cleared
+     * @param listName the name of the ArrayList that is being passed to the saveFile method
+     * @param needsToBeSaved boolean that determines if the user is prompted to save their list
+     * @throws FileNotFoundException an error that is thrown if the user's chosen file cannot be found
+     * @throws IOException an error that is thrown if any input/output error is found that is not the FileNotFoundException
+     */
     private static void clearList(Scanner pipe, ArrayList<String> list, String listName, boolean needsToBeSaved) throws FileNotFoundException, IOException
     {
+        /**
+         * a boolean that tracks whether the user said yes or no to saving the list
+         */
         boolean save = false;
 
         if(needsToBeSaved) {
@@ -442,15 +540,9 @@ public class Main
 
             if(save) {
                 saveFile(pipe, list, listName);
-
-                list.clear();
-                listName = "";
-                System.out.println("Your list has been cleared!");
-            }else {
-                list.clear();
-                listName = "";
-                System.out.println("Your list has been cleared!");
             }
         }
+        list.clear();
+        System.out.println("\nYour list has been cleared!");
     }
 }
